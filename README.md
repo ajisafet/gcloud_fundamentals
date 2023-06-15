@@ -95,3 +95,66 @@ To create custom static routes manually, use the Google Cloud Console, the gclou
 To create the routes automatically, you can use the Google Cloud app to create a Classic VPN tunnel with policy-based routing or as a route-based VPN.
 For more information, see Cloud VPN networks and tunnel routing.
 
+
+Dynamic Routes
+Dynamic routes are managed by Cloud Routers in the VPC network. Their destinations always represent IP address ranges outside your VPC network, which are received from a BGP peer router.
+BGP peer routers are typically outside the Google network (like on-premises or another cloud provider). Dynamic routes are used by: 
+1. Dedicated Interconnect
+2. Partner Interconnect
+3. HA VPN tunnels
+4. Classic VPN tunnels that use dynamic routing
+
+Routes are added and removed automatically by Cloud Routers in your VPC network. The routes apply to VMs according to the VPC network's dynamic routing mode. This example shows a VPC network connected to an on-premises network that uses Dedicated Interconnect. Cloud Router handles the BGP advertisements and adds them as custom routes. Cloud Router creates a BGP session for the VLAN attachment and its corresponding on-premises peer router. The Cloud Router receives the routes that your on-premises router advertises.
+These routes are added as custom dynamic routes in your VPC network. The Cloud Router also advertises routes for Google Cloud resources to the on-premises peer router.
+
+
+
+In your VPC networks, you are not limited to IP addresses that are assigned by Google Cloud. Next, let’s discuss BYOIP, or Bring Your Own IP addresses into Google Cloud.
+00:13
+BYOIP enables customers to assign IP addresses from a public IP range that they own to Google Cloud resources. With BYOIP, customers can route traffic directly from the internet to their VMs without having
+00:27
+to go through their own physical networks. After the IP addresses are imported, Google Cloud manages them in the same way as Google-provided IP addresses, with these exceptions: The IP addresses are available only to the customer who brought them.
+00:42
+Idle or in-use IP addresses incur no charges. The object that the IP address is assigned to can have a regional scope, like a VM or the forwarding rule of a network load balancer.
+00:55
+It can also have a global scope, like the forwarding rule of a global external HTTP(S) load balancer. It must support an external address type, because BYOIP ranges will be advertised by
+01:06
+Google to the public internet. A BYOIP address can’t be assigned to a Classic VPN gateway, GKE (Google Kubernetes Engine) node, GKE pod, or an autoscaling MIG (managed instance group).
+
+BYOIP Caveats
+BYOIP prefixes cannot overlap with subnet or alias ranges in the VPC used by the customer. For BYOIP, the IP address must be IPv4. Importing IPv6 addresses is not supported.
+01:38
+Overlapping BGP route announcements can be problematic. BGP is a routing protocol that picks the most efficient route to send a packet. If Google and another network advertise the same route with matching or mismatched prefix
+01:52
+lengths, BGP cannot work properly. You might experience unexpected routing and packet loss. For example: suppose you're advertising a 203.0.112.0/20 address block and you're using BGP to route packets. You could bring a 203.0.112.0/23 address block that you own to Google using BYOIP, and set
+02:18
+it up to route externally. Because the /23 block is contained within the /20 block, BGP route announcements can/might overlap. If you're maintaining the routing registry correctly, BPG routing practices cause the
+02:32
+more specific route to take precedence. Thus, the /23 block will take precedence over the /20 block. However, if the /23 route ever stopped being advertised, the /20 block could be used.
+
+Multiple Network Interfaces
+In conventional networking, devices can use multiple network interfaces to communicate with multiple networks. Next, let’s discuss using multiple network interfaces in a Google Cloud VPC network. VPC networks are isolated private networking domains by default.
+00:19
+As we mentioned earlier, VM instances within a VPC network can communicate among themselves by using internal IP addresses as long as firewall rules permit. However, no internal IP address communication is allowed between networks unless you set
+00:35
+up mechanisms such as VPC peering or VPN. Every instance in a VPC network has a default network interface. You can create additional network interfaces attached to your VMs through network interface
+00:49
+controllers (NICs). Multiple network interfaces let you create configurations in which an instance connects directly to several VPC networks. Each of the interfaces must have an internal IP address, and each interface can also have
+01:03
+an external IP address. For example, in this diagram, you have two VM instances. Each instance has network interfaces to a subnet within VPC1, VPC2, and VPC3. For some situations, you might require multiple interfaces; for example, to configure an instance
+01:24
+as a network appliance for load balancing. Multiple network interfaces are also useful when applications running in an instance require traffic separation, such as separation of data plane traffic from management plane traffic.
+01:39
+When creating VM instances with multiple network interfaces, note these caveats. You can only configure a network interface when you create an instance. Each network interface configured in a single instance must be attached to a different VPC
+01:54
+network. Each interface must belong to a subnet whose IP range does not overlap with the subnets of any other interfaces. The additional VPC networks that the multiple interfaces will attach to must exist before
+02:08
+you create the instance. You cannot delete a network interface without deleting the instance. When an internal DNS (Domain Name System) query is made with the instance hostname, it resolves to the primary interface (nic0) of the instance.
+02:26
+If the nic0 interface of the instance belongs to a different VPC network than the instance that issues the internal DNS query, the query will fail. You will explore this in the upcoming lab.
+02:38
+The maximum number of network interfaces per instance is 8, but this depends on the instance's machine type, as shown in this table: Instances with less than or equal to 2 vCPU can have up to 2 virtual NICs.
+02:54
+Examples include the f1-micro, g1-small, n1-standard-1, and any other custom VMs with 1 or 2 vCPUs. Instances with more than 2 vCPU can have 1 NIC per vCPU, with a maximum of 8 virtual
+03:12
+NICs.
