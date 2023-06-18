@@ -158,3 +158,29 @@ The maximum number of network interfaces per instance is 8, but this depends on 
 Examples include the f1-micro, g1-small, n1-standard-1, and any other custom VMs with 1 or 2 vCPUs. Instances with more than 2 vCPU can have 1 NIC per vCPU, with a maximum of 8 virtual
 03:12
 NICs.
+
+# Create firewall rule
+gcloud compute --project=qwiklabs-gcp-00-895ef3240821 firewall-rules create managementnet-allow-icmp-ssh-rdp --direction=INGRESS --priority=1000 --network=managementnet --action=ALLOW --rules=tcp:22,tcp:3389,icmp --source-ranges=0.0.0.0/0
+
+# Subnets span a region, VPCs spans multiple regions
+# This is unlike AWS where a VPC spans a region and subnets span a single availability zone
+
+command to create the privatenet network:
+gcloud compute networks create privatenet --subnet-mode=custom
+
+command to create the privatesubnet-us subnet
+gcloud compute networks subnets create privatesubnet-us --network=privatenet --region=us-central1 --range=172.16.0.0/24
+
+command to create the privatesubnet-eusubnet
+gcloud compute networks subnets create privatesubnet-eu --network=privatenet --region=europe-west3 --range=172.20.0.0/20
+
+command to list the available VPC networks:
+gcloud compute networks list
+
+As expected, the default and mynetwork networks have subnets in each region, because they are auto mode networks. The managementnet and privatenet networks only have the subnets that you created, because they are custom mode networks.
+
+# Create firewall rule
+gcloud compute --project=qwiklabs-gcp-00-895ef3240821 firewall-rules create managementnet-allow-icmp-ssh-rdp --direction=INGRESS --priority=1000 --network=managementnet --action=ALLOW --rules=tcp:22,tcp:3389,icmp --source-ranges=0.0.0.0/0
+
+# List firewall rules
+gcloud compute firewall-rules list --sort-by=NETWORK
