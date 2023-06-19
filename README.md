@@ -260,7 +260,7 @@ default via 172.16.0.1 dev eth0
 172.16.0.0/24 via 172.16.0.1 dev eth0
 172.16.0.1 dev eth0 scope link
 Note: The primary interface eth0 gets the default route (default via 172.16.0.1 dev eth0), and all three interfaces, eth0, eth1, and eth2, get routes for their respective subnets. Because the subnet of mynet-eu-vm (10.132.0.0/20) is not included in this routing table, the ping to that instance leaves vm-appliance on eth0 (which is on a different VPC network).
-Learn more about how you can change this behavior by configuring policy routing from the Creating instances with multiple network interfaces guide.
+Learn more about how you can change this behavior by configuring policy routing from the [Creating instances with multiple network interfaces guide](https://cloud.google.com/vpc/docs/create-use-multiple-interfaces#configuring_policy_routing).
 
 
 student-02-395955b7a034@vm-appliance:~$ ip route
