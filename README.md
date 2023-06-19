@@ -177,6 +177,9 @@ gcloud compute networks subnets create privatesubnet-eu --network=privatenet --r
 command to list the available VPC networks:
 gcloud compute networks list
 
+list the available VPC subnets (sorted by VPC network):
+gcloud compute networks subnets list --sort-by=NETWORK
+
 As expected, the default and mynetwork networks have subnets in each region, because they are auto mode networks. The managementnet and privatenet networks only have the subnets that you created, because they are custom mode networks.
 
 # Create firewall rule
@@ -184,3 +187,87 @@ gcloud compute --project=qwiklabs-gcp-00-895ef3240821 firewall-rules create mana
 
 # List firewall rules
 gcloud compute firewall-rules list --sort-by=NETWORK
+
+The firewall rules for mynetwork network have been created for you. You can define multiple protocols and ports in one firewall rule (privatenet and managementnet) or spread them across multiple rules (default and mynetwork).
+
+
+
+# Create instance
+gcloud compute instances create privatenet-us-vm --zone=us-central1-c --machine-type=n1-standard-1 --subnet=privatesubnet-us
+
+gcloud compute instances list --sort-by=ZONE
+
+Note instances in the same VPC but different subnets (different regions) and zones can communicate with each other
+
+Important: VPC networks are by default isolated private networking domains. However, no internal IP address communication is allowed between networks, unless you set up mechanisms such as VPC peering or VPN.
+
+Create a VM instance with multiple network interfaces
+Every instance in a VPC network has a default network interface. You can create additional network interfaces attached to your VMs. Multiple network interfaces enable you to create configurations in which an instance connects directly to several VPC networks (up to 8 interfaces, depending on the instance's type).
+
+Create the VM instance with multiple network interfaces
+Create the vm-appliance instance with network interfaces in privatesubnet-us, managementsubnet-us, and mynetwork. The CIDR ranges of these subnets do not overlap, which is a requirement for creating a VM with multiple network interface controllers (NICs).
+
+Note: The number of interfaces allowed in an instance is dependent on the instance's machine type and the number of vCPUs. The n1-standard-4 allows up to 4 network interfaces. Learn more about determining the number allowed interfaces from the Creating instances with multiple network interfaces guide.
+
+
+
+# Explore the network interface connectivity
+In the Cloud Console, on the Navigation menu, click Compute Engine > VM instances.
+
+Note the internal IP addresses for privatenet-us-vm, managementnet-us-vm, mynet-us-vm, and mynet-eu-vm.
+
+Return to the SSH terminal for vm-appliance.
+
+To test connectivity to privatenet-us-vm's internal IP, run the following command, replacing privatenet-us-vm's internal IP:
+
+ping -c 3 <Enter privatenet-us-vm's internal IP here>
+Copied!
+This works!
+
+Repeat the same test by running the following:
+
+ping -c 3 privatenet-us-vm
+Copied!
+Note: You can ping privatenet-us-vm by its name because VPC networks have an internal DNS service that allows you to address instances by their DNS names instead of their internal IP addresses. When an internal DNS query is made with the instance hostname, it resolves to the primary interface (nic0) of the instance. Therefore, this only works for privatenet-us-vm in this case.
+To test connectivity to managementnet-us-vm's internal IP, run the following command, replacing managementnet-us-vm's internal IP:
+
+ping -c 3 <Enter managementnet-us-vm's internal IP here>
+Copied!
+This works!
+
+To test connectivity to mynet-us-vm's internal IP, run the following command, replacing mynet-us-vm's internal IP:
+
+ping -c 3 <Enter mynet-us-vm's internal IP here>
+Copied!
+This works!
+
+To test connectivity to mynet-eu-vm's internal IP, run the following command, replacing mynet-eu-vm's internal IP:
+
+ping -c 3 <Enter mynet-eu-vm's internal IP here>
+Copied!
+Note: This does not work! In a multiple interface instance, every interface gets a route for the subnet that it is in. In addition, the instance gets a single default route that is associated with the primary interface eth0. Unless manually configured otherwise, any traffic leaving an instance for any destination other than a directly connected subnet will leave the instance via the default route on eth0.
+To list the routes for vm-appliance instance, run the following command:
+
+ip route
+Copied!
+The output should look like this example:
+
+default via 172.16.0.1 dev eth0
+10.128.0.0/20 via 10.128.0.1 dev eth2
+10.128.0.1 dev eth2 scope link
+10.130.0.0/20 via 10.130.0.1 dev eth1
+10.130.0.1 dev eth1 scope link
+172.16.0.0/24 via 172.16.0.1 dev eth0
+172.16.0.1 dev eth0 scope link
+Note: The primary interface eth0 gets the default route (default via 172.16.0.1 dev eth0), and all three interfaces, eth0, eth1, and eth2, get routes for their respective subnets. Because the subnet of mynet-eu-vm (10.132.0.0/20) is not included in this routing table, the ping to that instance leaves vm-appliance on eth0 (which is on a different VPC network).
+Learn more about how you can change this behavior by configuring policy routing from the Creating instances with multiple network interfaces guide.
+
+
+student-02-395955b7a034@vm-appliance:~$ ip route
+default via 172.16.0.1 dev ens4 
+10.128.0.0/20 via 10.128.0.1 dev ens6 
+10.128.0.1 dev ens6 scope link 
+10.130.0.0/20 via 10.130.0.1 dev ens5 
+10.130.0.1 dev ens5 scope link 
+172.16.0.0/24 via 172.16.0.1 dev ens4 
+172.16.0.1 dev ens4 scope link
