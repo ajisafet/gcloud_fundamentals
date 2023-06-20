@@ -18,7 +18,7 @@ Cloud DNS policies provide a flexible way to define how your organization uses D
 Server policies are used to set up hybrid deployments for DNS resolution. You can set up an inbound server policy depending on the direction of the DNS resolutions. If your workloads plan to use an on-premises DNS resolver, you can set up DNS forwarding zones by using an outbound server policy.
 If you want your on-premises workloads to resolve names on Google Cloud, you can set up an inbound server policy.
 
-** You can configure one DNS server policy for each Virtual Private Cloud (VPC) network. **
+**You can configure one DNS server policy for each Virtual Private Cloud (VPC) network.**
 
 
 
