@@ -44,9 +44,69 @@ To create, edit, or delete DNS routing policies, see Manage DNS routing policies
 When configuring routing policies, consider these caveats: Only one type of routing policy can be applied to a resource record set at a time.
 Nesting or otherwise combining routing policies is not supported.
 
+#### Gcloud commands from DNS Labs
+Enable Cloud DNS
+gcloud services enable dns.googleapis.com
+
+Enable Compute Engine API
+gcloud services enable compute.googleapis.com
+
+gcloud services list | grep -E 'compute|dns'
+
+*To be able to SSH into the client VMs, run the following to create a firewall rule to allow SSH traffic from Identity Aware Proxies (IAP)*
+gcloud compute firewall-rules create fw-default-iapproxy \
+--direction=INGRESS \
+--priority=1000 \
+--network=default \
+--action=ALLOW \
+--rules=tcp:22,icmp \
+--source-ranges=35.235.240.0/20
+
+*To allow HTTP traffic on the web servers, each web server will have a "http-server" tag associated with it. You will use this tag to apply the firewall rule only to your web servers*
+gcloud compute firewall-rules create allow-http-traffic --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:80 --source-ranges=0.0.0.0/0 --target-tags=http-server
+
+*Create client VMs in us-east1 zone*
+gcloud compute instances create us-client-vm --machine-type=e2-micro --zone us-east1-b
+
+*Create client VMs in europe-west2 zone*
+gcloud compute instances create europe-client-vm --machine-type=e2-micro --zone europe-west2-a
+
+*Launch server in us-east1 region using a startup script*
+gcloud compute instances create us-web-vm \
+--machine-type=e2-micro \
+--zone=us-east1-b \
+--network=default \
+--subnet=default \
+--tags=http-server \
+--metadata=startup-script='#! /bin/bash
+ apt-get update
+ apt-get install apache2 -y
+ echo "Page served from: US-EAST1" | \
+ tee /var/www/html/index.html
+ systemctl restart apache2'
+
+* Save the internal IP address of the web servers which is needed to set up routing policies*
+export US_WEB_IP=$(gcloud compute instances describe us-web-vm --zone=us-east1-b --format="value(networkInterfaces.networkIP)")
+
+Now that your client and server VMs are running, it's time to configure the DNS settings. Before creating the A records for the web servers, you need to create the Cloud DNS Private Zone.
+
+*Now that your client and server VMs are running, it's time to configure the DNS settings. Before creating the A records for the web servers, you need to create the Cloud DNS Private Zone.*
+gcloud dns managed-zones create example --description=test --dns-name=example.com --networks=default --visibility=private
+
+*Create Cloud DNS Routing Policy*
+In this section, configure the Cloud DNS Geolocation Routing Policy. You will create a record set in the example.com zone that you created in the previous section.
+Use the gcloud dns record-sets create command to create the geo.example.com recordset:
+
+gcloud dns record-sets create geo.example.com \
+--ttl=5 --type=A --zone=example \
+--routing-policy-type=GEO \
+--routing-policy-data="us-east1=$US_WEB_IP;europe-west2=$EUROPE_WEB_IP"
+
+You are creating an A record with a Time to Live (TTL) of 5 seconds. The policy type is GEO, and the routing_policy_data field accepts a semicolon-delimited list of the format ${region}:${rrdata},${rrdata}.
+
+gcloud dns record-sets list --zone=example
 
 
+gcloud compute ssh us-client-vm --zone us-east1-b --tunnel-through-iap
 
-
-
-
+for i in {1..10}; do echo $i; curl geo.example.com; sleep 6; done
